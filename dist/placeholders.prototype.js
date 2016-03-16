@@ -34,11 +34,45 @@
   var test = document.createElement('input');
   var nativeSupport = test.placeholder !== void 0;
 
-  global.Placeholders = {
+  function extend(target, source) {
+    target = target || {};
+    for (var prop in source) {
+      if (!source.hasOwnProperty(prop)) {
+        continue;
+      }
+      target[prop] = typeof source[prop] === 'object' ?
+        extend(target[prop], source[prop]) :
+        source[prop];
+    }
+    return target;
+  }
+
+  global.Placeholders = extend({
     nativeSupport: nativeSupport,
-    disable: nativeSupport ? noop : disablePlaceholders,
-    enable: nativeSupport ? noop : enablePlaceholders
-  };
+    disable: nativeSupport ? noop: disablePlaceholders,
+    enable: nativeSupport ? noop : enablePlaceholders,
+    options: {
+      // Behavior
+      hideOnFocus: false,
+      liveUpdates: true,
+      // Styling
+      placeholderStyleColor: "#ccc",
+      placeholderClassName: "placeholdersjs",
+      // Tuning
+      attrPrefix: "data-placeholder-",
+      attrKeys: {
+        active: "active",
+        currentVal: "value",
+        eventsBound: "bound",
+        formHandled: "submit",
+        inputType: "type",
+        maxLength: "maxlength",
+        optionFocus: "focus",
+        optionLive: "live"
+      },
+      updateInterval: 100
+    }
+  }, global.Placeholders);
 
   if ( nativeSupport ) {
     return;
@@ -48,6 +82,9 @@
   // If we reach this point then the browser does not have native support for
   // the attribute.
   //
+
+  var Placeholders = global.Placeholders,
+      options = Placeholders.options;
 
   // The list of input element types that support the placeholder attribute.
   var validTypes = [
@@ -90,37 +127,35 @@
   ];
 
   // Styling variables.
-  var placeholderStyleColor = '#ccc';
-  var placeholderClassName = 'placeholdersjs';
-  var classNameRegExp = new RegExp('(?:^|\\s)' + placeholderClassName + '(?!\\S)');
+  var getClassNameRegExp = function () { return new RegExp('(?:^|\\s)' + options.placeholderClassName + '(?!\\S)'); };
 
   // The various data-* attributes used by the polyfill.
-  var ATTR_CURRENT_VAL = 'data-placeholder-value';
-  var ATTR_ACTIVE = 'data-placeholder-active';
-  var ATTR_INPUT_TYPE = 'data-placeholder-type';
-  var ATTR_FORM_HANDLED = 'data-placeholder-submit';
-  var ATTR_EVENTS_BOUND = 'data-placeholder-bound';
-  var ATTR_OPTION_FOCUS = 'data-placeholder-focus';
-  var ATTR_OPTION_LIVE = 'data-placeholder-live';
-  var ATTR_MAXLENGTH = 'data-placeholder-maxlength';
+  var ATTR_ACTIVE       = options.attrPrefix + options.attrKeys.active;
+  var ATTR_CURRENT_VAL  = options.attrPrefix + options.attrKeys.currentVal;
+  var ATTR_EVENTS_BOUND = options.attrPrefix + options.attrKeys.eventsBound;
+  var ATTR_FORM_HANDLED = options.attrPrefix + options.attrKeys.formHandled;
+  var ATTR_INPUT_TYPE   = options.attrPrefix + options.attrKeys.inputType;
+  var ATTR_MAXLENGTH    = options.attrPrefix + options.attrKeys.maxlength;
+  var ATTR_OPTION_FOCUS = options.attrPrefix + options.attrKeys.optionFocus;
+  var ATTR_OPTION_LIVE  = options.attrPrefix + options.attrKeys.optionLive;
 
   // Various other variables used throughout the rest of the script.
-  var UPDATE_INTERVAL = 100;
   var head = document.getElementsByTagName('head')[ 0 ];
   var root = document.documentElement;
-  var Placeholders = global.Placeholders;
   var keydownVal;
 
   // Get references to all the input and textarea elements currently in the DOM
   // (live NodeList objects to we only need to do this once).
-  var inputs = document.getElementsByTagName('input');
+  var inputs    = document.getElementsByTagName('input');
   var textareas = document.getElementsByTagName('textarea');
 
   // Get any settings declared as data-* attributes on the root element.
   // Currently the only options are whether to hide the placeholder on focus
   // or input and whether to auto-update.
-  var hideOnInput = root.getAttribute(ATTR_OPTION_FOCUS) === 'false';
-  var liveUpdates = root.getAttribute(ATTR_OPTION_LIVE) !== 'false';
+  var hideOnInput = !options.hideOnFocus || root.getAttribute(ATTR_OPTION_FOCUS) === 'false';
+  if (root.getAttribute(ATTR_OPTION_LIVE)) {
+    options.liveUpdates = root.getAttribute(ATTR_OPTION_LIVE) !== 'false';
+  }
 
   // Create style element for placeholder styles (instead of directly setting
   // style properties on elements - allows for better flexibility alongside
@@ -130,8 +165,8 @@
 
   // Create style rules as text node.
   var styleRules = document.createTextNode(
-    '.' + placeholderClassName + ' {' +
-      'color:' + placeholderStyleColor + ';' +
+    '.' + options.placeholderClassName + ' {' +
+      'color:' + options.placeholderStyleColor + ';' +
     '}'
   );
 
@@ -231,10 +266,10 @@
     }
 
     // If live updates are not enabled cancel the timer.
-    if ( !liveUpdates ) {
+    if (!options.liveUpdates) {
       clearInterval(timer);
     }
-  }, UPDATE_INTERVAL);
+  }, options.updateInterval);
 
   // Disabling placeholders before unloading the page prevents flash of
   // unstyled placeholders on load if the page was refreshed.
@@ -257,7 +292,9 @@
   function safeActiveElement() {
     try {
       return document.activeElement;
-    } catch ( err ) {}
+    } catch ( err ) {
+      return undefined;
+    }
   }
 
   // Check whether an item is in an array. We don't use Array.prototype.indexOf
@@ -280,6 +317,7 @@
     if ( elem.attachEvent ) {
       return elem.attachEvent('on' + event, fn);
     }
+    return undefined;
   }
 
   // Move the caret to the index position specified. Assumes that the element
@@ -363,7 +401,7 @@
 
       elem.removeAttribute(ATTR_ACTIVE);
       elem.value = elem.value.replace(elem.getAttribute(ATTR_CURRENT_VAL), '');
-      elem.className = elem.className.replace(classNameRegExp, '');
+      elem.className = elem.className.replace(getClassNameRegExp(), '');
 
       // Restore the maxlength value. Old FF returns -1 if attribute not set.
       // See GH-56.
@@ -397,7 +435,7 @@
 
       elem.setAttribute(ATTR_ACTIVE, 'true');
       elem.value = val;
-      elem.className += ' ' + placeholderClassName;
+      elem.className += ' ' + options.placeholderClassName;
 
       // Store and remove the maxlength value.
       var maxLength = elem.getAttribute(ATTR_MAXLENGTH);
