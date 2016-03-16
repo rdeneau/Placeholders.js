@@ -34,23 +34,15 @@
   var test = document.createElement('input');
   var nativeSupport = test.placeholder !== void 0;
 
-  function extend(target, source) {
-    target = target || {};
-    for (var prop in source) {
-      if (!source.hasOwnProperty(prop)) {
-        continue;
-      }
-      target[prop] = typeof source[prop] === 'object' ?
-        extend(target[prop], source[prop]) :
-        source[prop];
-    }
-    return target;
-  }
-
   global.Placeholders = extend({
     nativeSupport: nativeSupport,
     disable: nativeSupport ? noop: disablePlaceholders,
     enable: nativeSupport ? noop : enablePlaceholders,
+    fn: {
+      getPlaceholderValue: getPlaceholderValue,
+      isPlaceholderActive: isPlaceholderActive,
+      setPlaceholderActive: setPlaceholderActive
+    },
     options: {
       // Behavior
       hideOnFocus: false,
@@ -127,7 +119,7 @@
   ];
 
   // Styling variables.
-  var getClassNameRegExp = function () { return new RegExp('(?:^|\\s)' + options.placeholderClassName + '(?!\\S)'); };
+  var classNameRegExp = new RegExp('(?:^|\\s)' + options.placeholderClassName + '(?!\\S)');
 
   // The various data-* attributes used by the polyfill.
   var ATTR_ACTIVE       = options.attrPrefix + options.attrKeys.active;
@@ -235,7 +227,7 @@
           // If the placeholder value has changed or not been initialised yet
           // we need to update the display.
           if (
-            placeholder !== elem.getAttribute(ATTR_CURRENT_VAL) ||
+            placeholder !== getPlaceholderValue(elem) ||
             ( elem.type === 'password' && !elem.getAttribute(ATTR_INPUT_TYPE) )
           ) {
 
@@ -250,16 +242,16 @@
 
             // If the placeholder value has changed and the placeholder is
             // currently on display we need to change it.
-            if ( elem.value === elem.getAttribute(ATTR_CURRENT_VAL) ) {
+            if ( elem.value === getPlaceholderValue(elem) ) {
               elem.value = placeholder;
             }
 
             // Keep a reference to the current placeholder value in case it
             // changes via another script.
-            elem.setAttribute(ATTR_CURRENT_VAL, placeholder);
+            setPlaceholderValue(elem, placeholder);
           }
         }
-      } else if ( elem.getAttribute(ATTR_ACTIVE) ) {
+      } else if (isPlaceholderActive(elem)) {
         hidePlaceholder(elem);
         elem.removeAttribute(ATTR_CURRENT_VAL);
       }
@@ -281,8 +273,43 @@
   // Utility functions
   //
 
+  // Simplified object deep extension
+  function extend(target, source) {
+    target = target || {};
+    for (var prop in source) {
+      if (!source.hasOwnProperty(prop)) {
+        continue;
+      }
+      target[prop] = typeof source[prop] === 'object' ?
+        extend(target[prop], source[prop]) :
+        source[prop];
+    }
+    return target;
+  }
+
   // No-op (used in place of public methods when native support is detected).
   function noop() {}
+
+  // Wrappers around attribute getter/setter, exposed to adapters via the Placeholders "fn" property.
+  function getPlaceholderValue(elem) {
+    return elem.getAttribute(ATTR_CURRENT_VAL);
+  }
+
+  function isPlaceholderActive(elem) {
+    return elem.getAttribute(ATTR_ACTIVE) === 'true';
+  }
+
+  function setPlaceholderActive(elem, value) {
+    if (value) {
+      elem.setAttribute(ATTR_ACTIVE, 'true');
+    } else {
+      elem.removeAttribute(ATTR_ACTIVE);
+    }
+  }
+
+  function setPlaceholderValue(elem, value) {
+    return elem.setAttribute(ATTR_CURRENT_VAL, value);
+  }
 
   // Avoid IE9 activeElement of death when an iframe is used.
   //
@@ -392,16 +419,16 @@
   function hidePlaceholder( elem, keydownValue ) {
 
     var valueChanged = !!keydownValue && elem.value !== keydownValue;
-    var isPlaceholderValue = elem.value === elem.getAttribute(ATTR_CURRENT_VAL);
+    var isPlaceholderValue = elem.value === getPlaceholderValue(elem);
 
     if (
       ( valueChanged || isPlaceholderValue ) &&
-      elem.getAttribute(ATTR_ACTIVE) === 'true'
+      isPlaceholderActive(elem)
     ) {
 
-      elem.removeAttribute(ATTR_ACTIVE);
-      elem.value = elem.value.replace(elem.getAttribute(ATTR_CURRENT_VAL), '');
-      elem.className = elem.className.replace(getClassNameRegExp(), '');
+      setPlaceholderActive(elem, false);
+      elem.value = elem.value.replace(getPlaceholderValue(elem), '');
+      elem.className = elem.className.replace(classNameRegExp, '');
 
       // Restore the maxlength value. Old FF returns -1 if attribute not set.
       // See GH-56.
@@ -429,11 +456,11 @@
   // visible).
   function showPlaceholder( elem ) {
 
-    var val = elem.getAttribute(ATTR_CURRENT_VAL);
+    var val = getPlaceholderValue(elem);
 
     if ( elem.value === '' && val ) {
 
-      elem.setAttribute(ATTR_ACTIVE, 'true');
+      setPlaceholderActive(elem, true);
       elem.value = val;
       elem.className += ' ' + options.placeholderClassName;
 
@@ -467,8 +494,8 @@
       // behaviour is enabled.
       if (
         hideOnInput &&
-        elem.value === elem.getAttribute(ATTR_CURRENT_VAL) &&
-        elem.getAttribute(ATTR_ACTIVE) === 'true'
+        elem.value === getPlaceholderValue(elem) &&
+        isPlaceholderActive(elem)
       ) {
 
         // Move the caret to the start of the input (this mimics the behaviour
@@ -509,8 +536,8 @@
       // Prevent the use of the arrow keys (try to keep the cursor before the
       // placeholder).
       if (
-        elem.getAttribute(ATTR_ACTIVE) === 'true' &&
-        keydownVal === elem.getAttribute(ATTR_CURRENT_VAL) &&
+        isPlaceholderActive(elem) &&
+        keydownVal === getPlaceholderValue(elem) &&
         inArray(badKeys, e.keyCode)
       ) {
         if ( e.preventDefault ) {
@@ -518,6 +545,7 @@
         }
         return false;
       }
+      return true;
     };
   }
 
@@ -537,8 +565,8 @@
     return function () {
       if (
         elem === safeActiveElement() &&
-        elem.value === elem.getAttribute(ATTR_CURRENT_VAL) &&
-        elem.getAttribute(ATTR_ACTIVE) === 'true'
+        elem.value === getPlaceholderValue(elem) &&
+        isPlaceholderActive(elem)
       ) {
         moveCaret(elem, 0);
       }
@@ -580,7 +608,7 @@
 
     // Remember that we've bound event handlers to this element.
     elem.setAttribute(ATTR_EVENTS_BOUND, 'true');
-    elem.setAttribute(ATTR_CURRENT_VAL, placeholder);
+    setPlaceholderValue(elem, placeholder);
 
     // If the element doesn't have a value and is not focussed, set it to the
     // placeholder string.
@@ -598,30 +626,35 @@
   var originalValFn = $.fn.val;
   var originalPropFn = $.fn.prop;
 
-  if ( !global.Placeholders.nativeSupport ) {
-
-    $.fn.val = function ( val ) {
-      var originalValue = originalValFn.apply(this, arguments);
-      var placeholder = this.eq(0).data('placeholder-value');
-      if (
-        val === undefined &&
-        this.eq(0).data('placeholder-active') &&
-        originalValue === placeholder
-      ) {
-        return '';
-      }
-      return originalValue;
-    };
-
-    $.fn.prop = function ( name, val ) {
-      if (
-        val === undefined &&
-        this.eq(0).data('placeholder-active') &&
-        name === 'value'
-      ) {
-        return '';
-      }
-      return originalPropFn.apply(this, arguments);
-    };
+  if (global.Placeholders.nativeSupport) {
+    return;
   }
+
+  $.fn.val = function (val) {
+    var $elem = this;
+    var elem = $elem[0];
+    var originalValue = originalValFn.apply($elem, arguments);
+    var placeholder = global.Placeholders.fn.getPlaceholderValue(elem);
+    if (
+      val === undefined &&
+      originalValue === placeholder &&
+      global.Placeholders.fn.isPlaceholderActive(elem)
+    ) {
+      return '';
+    }
+    return originalValue;
+  };
+
+  $.fn.prop = function ( name, val ) {
+    var $elem = this;
+    var elem = $elem[0];
+    if (
+      name === 'value' &&
+      val === undefined &&
+      global.Placeholders.fn.isPlaceholderActive(elem)
+    ) {
+      return '';
+    }
+    return originalPropFn.apply($elem, arguments);
+  };
 }(jQuery, this) );

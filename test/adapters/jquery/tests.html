@@ -1,11 +1,11 @@
-<!doctype html>
+﻿<!doctype html>
 <html>
-  <head>
+<head>
     <meta charset="utf-8">
     <title>Placeholders.js Browser Test</title>
     <link rel="stylesheet" href="../../tests.css">
-  </head>
-  <body>
+</head>
+<body>
 
     <!-- jQuery adapter should cause the val method to return the empty string -->
     <input placeholder="Test no type" id="jq1">
@@ -22,8 +22,10 @@
     <!-- Adapter should handle input types that change after page load e.g. text->password -->
     <input type="text" id="handle3" placeholder="Change to password">
 
+    <pre id="results"></pre>
+
     <script src="http://code.jquery.com/jquery-1.10.2.min.js"></script>
     <script src="../../../dist/placeholders.jquery.js"></script>
     <script src="tests.js"></script>
-  </body>
+</body>
 </html>
