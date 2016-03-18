@@ -619,26 +619,22 @@
 
 }(this) );
 
-/// <reference path="../../bower_components/jquery/dist/jquery.min.js" />
+/// <reference path="../../bower_components/knockout/dist/knockout.js" />
 
-( function ( $, global ) {
+( function ( ko, global ) {
 
   'use strict';
 
-  var originalValFn = $.fn.val;
-  var originalPropFn = $.fn.prop;
+  var originalReadValue = ko.selectExtensions.readValue;
+  var originalWriteValue = ko.selectExtensions.writeValue;
 
   if (global.Placeholders.nativeSupport) {
     return;
   }
 
-  $.fn.val = function (val) {
-    var $elem = this;
-    var elem = $elem[0];
-    var originalValue = originalValFn.apply($elem, arguments);
-    var placeholder = global.Placeholders.fn.getPlaceholderValue(elem);
+  ko.selectExtensions.readValue = function (elem) {
+    var originalValue = originalReadValue.apply(this, arguments);
     if (
-      val === undefined &&
       originalValue === placeholder &&
       global.Placeholders.fn.isPlaceholderActive(elem)
     ) {
@@ -647,16 +643,9 @@
     return originalValue;
   };
 
-  $.fn.prop = function ( name, val ) {
-    var $elem = this;
-    var elem = $elem[0];
-    if (
-      name === 'value' &&
-      val === undefined &&
-      global.Placeholders.fn.isPlaceholderActive(elem)
-    ) {
-      return '';
-    }
-    return originalPropFn.apply($elem, arguments);
+  ko.selectExtensions.writeValue = function (elem, value, allowUnset) {
+    var result = originalWriteValue.apply(this, arguments);
+    return result;
   };
-}(jQuery, this) );
+
+}(ko, this) );

@@ -23,6 +23,21 @@ module.exports = function ( grunt ) {
         ],
         dest: 'dist/placeholders.jquery.js'
       },
+      jqueryNknockout: {
+        src: [
+          'lib/placeholders.js',
+          'lib/adapters/placeholders.jquery.js',
+          'lib/adapters/placeholders.knockout.js'
+        ],
+        dest: 'dist/placeholders.jquery.knockout.js'
+      },
+      knockout: {
+        src: [
+          'lib/placeholders.js',
+          'lib/adapters/placeholders.knockout.js'
+        ],
+        dest: 'dist/placeholders.knockout.js'
+      },
       prototype: {
         src: [
           'lib/placeholders.js',
@@ -51,6 +66,12 @@ module.exports = function ( grunt ) {
           ],
           'dist/placeholders.jquery.min.js': [
             'dist/placeholders.jquery.js'
+          ],
+          'dist/placeholders.jquery.knockout.min.js': [
+            'dist/placeholders.jquery.knockout.js'
+          ],
+          'dist/placeholders.knockout.min.js': [
+            'dist/placeholders.knockout.js'
           ],
           'dist/placeholders.prototype.min.js': [
             'dist/placeholders.prototype.js'

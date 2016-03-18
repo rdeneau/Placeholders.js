@@ -1,4 +1,5 @@
 # Ignore 3rd-party Node modules
+bower_components
 node_modules
 
 # Ignore annoying OS X files

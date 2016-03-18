@@ -1,3 +1,5 @@
+/// <reference path="../../../bower_components/jquery/dist/jquery.min.js" />
+
 setTimeout(function () {
 
   // Test changing placeholder attribute value
